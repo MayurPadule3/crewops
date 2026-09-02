@@ -5,23 +5,23 @@ import jakarta.validation.constraints.NotBlank;
 
 public class CrewRequest {
 	
-	@NotBlank
+	@NotBlank(message = "Employee code is required")
 	private String employeeCode;
 	
-	@NotBlank
-	@Email
+	@NotBlank(message = "Email is required")
+	@Email(message = "Email must be valid")
 	private String email;
 	
-	@NotBlank
+	@NotBlank(message = "Name is required")
 	private String name;
 	
-	@NotBlank
+	@NotBlank(message = "Role is required")
 	private String role;
 	
-	@NotBlank
+	@NotBlank(message = "Base Airport is required")
 	private String baseAirport;
 	
-	@NotBlank
+	@NotBlank(message = "Status is required")
 	private String status;
 	public String getEmployeeCode() {
 		return employeeCode;
