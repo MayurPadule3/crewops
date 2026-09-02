@@ -50,5 +50,12 @@ public class CrewService {
 
 	    return crewRepository.save(crew);
 	}
+	
+	public void deleteCrew(Long id) {
+	    Crew crew = crewRepository.findById(id)
+	            .orElseThrow(() -> new CrewNotFoundException("Crew Not Found With id: " + id));
+
+	    crewRepository.delete(crew);
+	}
 
 }

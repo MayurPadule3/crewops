@@ -2,6 +2,7 @@ package com.crewops.controller;
 
 import java.util.List;
 
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -42,6 +43,11 @@ public class CrewController {
 	@PutMapping("/{id}")
 	public Crew updateCrew(@PathVariable Long id, @Valid @RequestBody CrewRequest crewRequest) {
 		return crewService.updateCrew(id, crewRequest);
+	}
+	
+	@DeleteMapping("/{id}")
+	public void deleteCrew(@PathVariable Long id) {
+		crewService.deleteCrew(id);
 	}
 	
 	
