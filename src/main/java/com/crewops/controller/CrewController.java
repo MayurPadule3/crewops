@@ -34,6 +34,11 @@ public class CrewController {
 		return crewService.getAllCrew();
 	}
 	
+	@GetMapping("/{id}")
+	public Crew getCrewById(@PathVariable Long id) {
+	    return crewService.getCrewById(id);
+	}
+	
 	@PostMapping
 	public Crew createCrew(@Valid @RequestBody CrewRequest crewRequest) {
 		return crewService.createCrew(crewRequest);

@@ -36,6 +36,11 @@ public class CrewService {
 		return crewRepository.findAll();
 	}
 	
+	public Crew getCrewById(Long id) {
+	    return crewRepository.findById(id)
+	            .orElseThrow(() -> new CrewNotFoundException("Crew Not Found With id: " + id));
+	}
+	
 	public Crew updateCrew(Long id, CrewRequest crewRequest) {
 
 	    Crew crew = crewRepository.findById(id)
