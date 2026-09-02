@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import com.crewops.dto.CrewRequest;
 import com.crewops.entity.Crew;
 import com.crewops.repository.CrewRepository;
 
@@ -16,7 +17,16 @@ public class CrewService {
 		this.crewRepository = crewRepository;
 	}
 	
-	public Crew createCrew(Crew crew) {
+	public Crew createCrew(CrewRequest crewRequest) {
+		
+		Crew crew = new Crew();
+		
+		crew.setEmployeeCode(crewRequest.getEmployeeCode());
+		crew.setName(crewRequest.getName());
+		crew.setEmail(crewRequest.getEmail());
+		crew.setRole(crewRequest.getRole());
+		crew.setBaseAirport(crewRequest.getBaseAirport());
+		crew.setStatus(crewRequest.getStatus());
 		
 		return crewRepository.save(crew);
 	}
