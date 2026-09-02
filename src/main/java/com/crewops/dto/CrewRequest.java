@@ -1,12 +1,27 @@
 package com.crewops.dto;
 
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+
 public class CrewRequest {
 	
+	@NotBlank
 	private String employeeCode;
+	
+	@NotBlank
+	@Email
 	private String email;
+	
+	@NotBlank
 	private String name;
+	
+	@NotBlank
 	private String role;
+	
+	@NotBlank
 	private String baseAirport;
+	
+	@NotBlank
 	private String status;
 	public String getEmployeeCode() {
 		return employeeCode;

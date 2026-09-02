@@ -12,6 +12,8 @@ import com.crewops.dto.CrewRequest;
 import com.crewops.entity.Crew;
 import com.crewops.service.CrewService;
 
+import jakarta.validation.Valid;
+
 
 @RestController
 @RequestMapping("/api/crew")
@@ -30,7 +32,7 @@ public class CrewController {
 	}
 	
 	@PostMapping
-	public Crew createCrew(@RequestBody CrewRequest crewRequest) {
+	public Crew createCrew(@Valid @RequestBody CrewRequest crewRequest) {
 		return crewService.createCrew(crewRequest);
 	}
 	
