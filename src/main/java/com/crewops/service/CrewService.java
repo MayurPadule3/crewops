@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 import com.crewops.dto.CrewRequest;
 import com.crewops.entity.Crew;
+import com.crewops.exception.CrewNotFoundException;
 import com.crewops.repository.CrewRepository;
 
 @Service
@@ -33,6 +34,21 @@ public class CrewService {
 	
 	public List<Crew> getAllCrew(){
 		return crewRepository.findAll();
+	}
+	
+	public Crew updateCrew(Long id, CrewRequest crewRequest) {
+
+	    Crew crew = crewRepository.findById(id)
+	            .orElseThrow(() -> new CrewNotFoundException("Crew Not Found With id: "+id));
+
+	    crew.setEmployeeCode(crewRequest.getEmployeeCode());
+	    crew.setName(crewRequest.getName());
+	    crew.setEmail(crewRequest.getEmail());
+	    crew.setRole(crewRequest.getRole());
+	    crew.setBaseAirport(crewRequest.getBaseAirport());
+	    crew.setStatus(crewRequest.getStatus());
+
+	    return crewRepository.save(crew);
 	}
 
 }
