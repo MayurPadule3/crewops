@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.crewops.dto.FlightRequest;
+import com.crewops.dto.FlightResponse;
 import com.crewops.entity.Flight;
 import com.crewops.service.FlightService;
 
@@ -29,22 +30,22 @@ public class FlightController {
 	
 	
 	@PostMapping
-	public Flight createFlight(@Valid @RequestBody FlightRequest flightRequest) {
+	public FlightResponse createFlight(@Valid @RequestBody FlightRequest flightRequest) {
 		return flightService.createFlight(flightRequest);
 	}
 	
 	@GetMapping
-	public List<Flight> getAllFlights(){
+	public List<FlightResponse> getAllFlights(){
 		return flightService.getAllFlights();
 	}
 	
 	@GetMapping("/{id}")
-	public Flight getFlightById(@PathVariable Long id) {
+	public FlightResponse getFlightById(@PathVariable Long id) {
 		return flightService.getFlightById(id);
 	}
 	
 	@PutMapping("/{id}")
-	public Flight updateFlight(
+	public FlightResponse updateFlight(
 	        @PathVariable Long id,
 	        @Valid
 	        @RequestBody FlightRequest flightRequest) {

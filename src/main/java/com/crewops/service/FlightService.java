@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 import com.crewops.dto.FlightRequest;
+import com.crewops.dto.FlightResponse;
 import com.crewops.entity.Flight;
 import com.crewops.exception.FlightNotFoundException;
 import com.crewops.repository.FlightRepository;
@@ -18,7 +19,7 @@ public class FlightService {
         this.flightRepository = flightRepository;
     }
 
-    public Flight createFlight(FlightRequest flightRequest) {
+    public FlightResponse createFlight(FlightRequest flightRequest) {
 
         if (!flightRequest.getArrivalTime()
                 .isAfter(flightRequest.getDepartureTime())) {
@@ -37,20 +38,27 @@ public class FlightService {
         flight.setAircraftCode(flightRequest.getAircraftCode());
         flight.setStatus(flightRequest.getStatus());
 
-        return flightRepository.save(flight);
+        Flight savedFlight = flightRepository.save(flight);
+        
+        return mapToResponse(savedFlight);
     }
 
-    public List<Flight> getAllFlights() {
-        return flightRepository.findAll();
+    public List<FlightResponse> getAllFlights() {
+        return flightRepository.findAll()
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
     }
 
-    public Flight getFlightById(Long id) {
-        return flightRepository.findById(id)
+    public FlightResponse getFlightById(Long id) {
+    	Flight flight = flightRepository.findById(id)
                 .orElseThrow(() -> new FlightNotFoundException(
                         "Flight Not Found With id: " + id));
+
+    	return mapToResponse(flight);
     }
 
-    public Flight updateFlight(Long id, FlightRequest flightRequest) {
+    public FlightResponse updateFlight(Long id, FlightRequest flightRequest) {
 
         if (!flightRequest.getArrivalTime()
                 .isAfter(flightRequest.getDepartureTime())) {
@@ -71,7 +79,8 @@ public class FlightService {
         flight.setAircraftCode(flightRequest.getAircraftCode());
         flight.setStatus(flightRequest.getStatus());
 
-        return flightRepository.save(flight);
+        Flight updatedFlight = flightRepository.save(flight);
+        return mapToResponse(updatedFlight);
     }
 
     public void deleteFlight(Long id) {
@@ -81,5 +90,21 @@ public class FlightService {
                         "Flight Not Found With id: " + id));
 
         flightRepository.delete(flight);
+    }
+    
+    private FlightResponse mapToResponse(Flight flight) {
+
+        FlightResponse response = new FlightResponse();
+
+        response.setId(flight.getId());
+        response.setFlightNumber(flight.getFlightNumber());
+        response.setDepartureAirport(flight.getDepartureAirport());
+        response.setArrivalAirport(flight.getArrivalAirport());
+        response.setDepartureTime(flight.getDepartureTime());
+        response.setArrivalTime(flight.getArrivalTime());
+        response.setAircraftCode(flight.getAircraftCode());
+        response.setStatus(flight.getStatus());
+
+        return response;
     }
 }
