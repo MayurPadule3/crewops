@@ -16,8 +16,11 @@ public class CrewAssignmentRequest {
     @NotBlank(message = "Assignment role is required")
     private String assignmentRole;
 
-    @NotNull(message = "Assignment time is required")
-    private LocalDateTime assignmentTime;
+    @NotNull(message = "Assignment start time is required")
+    private LocalDateTime assignmentStartTime;
+
+    @NotNull(message = "Assignment end time is required")
+    private LocalDateTime assignmentEndTime;
 
     @NotBlank(message = "Status is required")
     private String status;
@@ -46,15 +49,25 @@ public class CrewAssignmentRequest {
         this.assignmentRole = assignmentRole;
     }
 
-    public LocalDateTime getAssignmentTime() {
-        return assignmentTime;
-    }
+    
 
-    public void setAssignmentTime(LocalDateTime assignmentTime) {
-        this.assignmentTime = assignmentTime;
-    }
+    public LocalDateTime getAssignmentStartTime() {
+		return assignmentStartTime;
+	}
 
-    public String getStatus() {
+	public void setAssignmentStartTime(LocalDateTime assignmentStartTime) {
+		this.assignmentStartTime = assignmentStartTime;
+	}
+
+	public LocalDateTime getAssignmentEndTime() {
+		return assignmentEndTime;
+	}
+
+	public void setAssignmentEndTime(LocalDateTime assignmentEndTime) {
+		this.assignmentEndTime = assignmentEndTime;
+	}
+
+	public String getStatus() {
         return status;
     }
 

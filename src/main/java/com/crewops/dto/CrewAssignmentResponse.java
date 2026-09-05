@@ -8,7 +8,9 @@ public class CrewAssignmentResponse {
     private Long crewId;
     private Long flightId;
     private String assignmentRole;
-    private LocalDateTime assignmentTime;
+    private LocalDateTime assignmentStartTime;
+
+    private LocalDateTime assignmentEndTime;
     private String status;
 
     public Long getId() {
@@ -43,15 +45,24 @@ public class CrewAssignmentResponse {
         this.assignmentRole = assignmentRole;
     }
 
-    public LocalDateTime getAssignmentTime() {
-        return assignmentTime;
-    }
 
-    public void setAssignmentTime(LocalDateTime assignmentTime) {
-        this.assignmentTime = assignmentTime;
-    }
+    public LocalDateTime getAssignmentStartTime() {
+		return assignmentStartTime;
+	}
 
-    public String getStatus() {
+	public void setAssignmentStartTime(LocalDateTime assignmentStartTime) {
+		this.assignmentStartTime = assignmentStartTime;
+	}
+
+	public LocalDateTime getAssignmentEndTime() {
+		return assignmentEndTime;
+	}
+
+	public void setAssignmentEndTime(LocalDateTime assignmentEndTime) {
+		this.assignmentEndTime = assignmentEndTime;
+	}
+
+	public String getStatus() {
         return status;
     }
 

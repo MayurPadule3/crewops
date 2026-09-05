@@ -20,7 +20,9 @@ public class CrewAssignment {
 
     private String assignmentRole;
 
-    private LocalDateTime assignmentTime;
+    private LocalDateTime assignmentStartTime;
+
+    private LocalDateTime assignmentEndTime;
 
     private String status;
 
@@ -56,12 +58,20 @@ public class CrewAssignment {
         this.assignmentRole = assignmentRole;
     }
 
-    public LocalDateTime getAssignmentTime() {
-        return assignmentTime;
+    public LocalDateTime getAssignmentStartTime() {
+        return assignmentStartTime;
     }
 
-    public void setAssignmentTime(LocalDateTime assignmentTime) {
-        this.assignmentTime = assignmentTime;
+    public void setAssignmentStartTime(LocalDateTime assignmentStartTime) {
+        this.assignmentStartTime = assignmentStartTime;
+    }
+
+    public LocalDateTime getAssignmentEndTime() {
+        return assignmentEndTime;
+    }
+
+    public void setAssignmentEndTime(LocalDateTime assignmentEndTime) {
+        this.assignmentEndTime = assignmentEndTime;
     }
 
     public String getStatus() {
