@@ -43,50 +43,19 @@ public class CrewAssignmentService {
     public CrewAssignmentResponse createCrewAssignment(
             CrewAssignmentRequest crewAssignmentRequest) {
 
-        // Rule 1: Assignment end time must be after start time
+        // Rule 1: Assignment time
 
-        if (crewAssignmentRequest.getAssignmentEndTime()
-                .isBefore(crewAssignmentRequest.getAssignmentStartTime())) {
+        schedulingValidator.validateAssignmentTime(
+                crewAssignmentRequest.getAssignmentStartTime(),
+                crewAssignmentRequest.getAssignmentEndTime());
 
-            throw new IllegalArgumentException(
-                    "Assignment end time must be after start time");
-        }
+        // Rule 2: Approved leave
 
-        // Rule 2: Check whether crew member is on approved leave
+        validateApprovedLeave(crewAssignmentRequest);
 
-        var leaveRequests = leaveRequestRepository.findByCrewId(
-                crewAssignmentRequest.getCrewId());
+        // Rule 3: Crew availability
 
-        for (var leaveRequest : leaveRequests) {
-
-            if ("APPROVED".equalsIgnoreCase(leaveRequest.getStatus())
-                    && !crewAssignmentRequest.getAssignmentStartTime()
-                            .toLocalDate()
-                            .isAfter(leaveRequest.getEndDate())
-                    && !crewAssignmentRequest.getAssignmentEndTime()
-                            .toLocalDate()
-                            .isBefore(leaveRequest.getStartDate())) {
-
-                throw new IllegalArgumentException(
-                        "Crew member is on approved leave during this assignment");
-            }
-        }
-
-        // Rule 3: Check crew availability
-
-        var availabilityRecords =
-                crewAvailabilityRepository.findByCrewIdAndDate(
-                        crewAssignmentRequest.getCrewId(),
-                        crewAssignmentRequest.getAssignmentStartTime()
-                                .toLocalDate());
-
-        if (availabilityRecords.isEmpty()
-                || !"AVAILABLE".equalsIgnoreCase(
-                        availabilityRecords.get(0).getStatus())) {
-
-            throw new IllegalArgumentException(
-                    "Crew member is not available on the assignment date");
-        }
+        validateCrewAvailability(crewAssignmentRequest);
 
         // Get existing assignments
 
@@ -94,42 +63,42 @@ public class CrewAssignmentService {
                 crewAssignmentRepository.findByCrewId(
                         crewAssignmentRequest.getCrewId());
 
-        // Rule 4: Check overlapping assignment
+        // Rule 4: Overlap
 
         schedulingValidator.validateNoOverlap(
                 existingAssignments,
                 crewAssignmentRequest.getAssignmentStartTime(),
-                crewAssignmentRequest.getAssignmentEndTime());
+                crewAssignmentRequest.getAssignmentEndTime(),
+                null);
 
-        // Rule 5: Check minimum rest period
+        // Rule 5: Minimum rest
 
-        for (CrewAssignment assignment : existingAssignments) {
+        schedulingValidator.validateMinimumRestPeriod(
+                existingAssignments,
+                crewAssignmentRequest.getAssignmentStartTime(),
+                crewAssignmentRequest.getAssignmentEndTime(),
+                null,
+                schedulingProperties.getMinimumRestHours());
 
-            schedulingValidator.validateMinimumRestPeriod(
-                    crewAssignmentRequest.getAssignmentStartTime(),
-                    crewAssignmentRequest.getAssignmentEndTime(),
-                    assignment.getAssignmentStartTime(),
-                    assignment.getAssignmentEndTime(),
-                    schedulingProperties.getMinimumRestHours());
-        }
-
-        // Rule 6: Check maximum duty hours
+        // Rule 6: Maximum duty hours
 
         schedulingValidator.validateMaximumDutyHours(
                 crewAssignmentRequest.getAssignmentStartTime(),
                 crewAssignmentRequest.getAssignmentEndTime(),
                 schedulingProperties.getMaximumDutyHours());
 
-        // Rule 7: Check maximum consecutive duty days
+        // Rule 7: Maximum consecutive duty days
 
         schedulingValidator.validateMaximumConsecutiveDutyDays(
                 existingAssignments,
                 crewAssignmentRequest.getAssignmentStartTime(),
+                null,
                 schedulingProperties.getMaximumConsecutiveDutyDays());
 
         // Create assignment
 
-        CrewAssignment crewAssignment = new CrewAssignment();
+        CrewAssignment crewAssignment =
+                new CrewAssignment();
 
         crewAssignment.setCrewId(
                 crewAssignmentRequest.getCrewId());
@@ -150,7 +119,8 @@ public class CrewAssignmentService {
                 crewAssignmentRequest.getStatus());
 
         CrewAssignment savedCrewAssignment =
-                crewAssignmentRepository.save(crewAssignment);
+                crewAssignmentRepository.save(
+                        crewAssignment);
 
         return mapToResponse(savedCrewAssignment);
     }
@@ -163,13 +133,15 @@ public class CrewAssignmentService {
                 .toList();
     }
 
-    public CrewAssignmentResponse getCrewAssignmentById(Long id) {
+    public CrewAssignmentResponse getCrewAssignmentById(
+            Long id) {
 
         CrewAssignment crewAssignment =
                 crewAssignmentRepository.findById(id)
                 .orElseThrow(() ->
                         new CrewAssignmentNotFoundException(
-                                "Crew Assignment Not Found With id: " + id));
+                                "Crew Assignment Not Found With id: "
+                                + id));
 
         return mapToResponse(crewAssignment);
     }
@@ -178,20 +150,71 @@ public class CrewAssignmentService {
             Long id,
             CrewAssignmentRequest crewAssignmentRequest) {
 
-        // Rule: Assignment end time must be after start time
-
-        if (crewAssignmentRequest.getAssignmentEndTime()
-                .isBefore(crewAssignmentRequest.getAssignmentStartTime())) {
-
-            throw new IllegalArgumentException(
-                    "Assignment end time must be after start time");
-        }
+        // Find existing assignment
 
         CrewAssignment crewAssignment =
                 crewAssignmentRepository.findById(id)
                 .orElseThrow(() ->
                         new CrewAssignmentNotFoundException(
-                                "Crew Assignment Not Found With id: " + id));
+                                "Crew Assignment Not Found With id: "
+                                + id));
+
+        // Rule 1: Assignment time
+
+        schedulingValidator.validateAssignmentTime(
+                crewAssignmentRequest.getAssignmentStartTime(),
+                crewAssignmentRequest.getAssignmentEndTime());
+
+        // Rule 2: Approved leave
+
+        validateApprovedLeave(crewAssignmentRequest);
+
+        // Rule 3: Crew availability
+
+        validateCrewAvailability(crewAssignmentRequest);
+
+        // Get all assignments for this crew member
+
+        List<CrewAssignment> existingAssignments =
+                crewAssignmentRepository.findByCrewId(
+                        crewAssignmentRequest.getCrewId());
+
+        // Rule 4: Overlap
+        // Exclude the assignment currently being updated
+
+        schedulingValidator.validateNoOverlap(
+                existingAssignments,
+                crewAssignmentRequest.getAssignmentStartTime(),
+                crewAssignmentRequest.getAssignmentEndTime(),
+                id);
+
+        // Rule 5: Minimum rest
+        // Exclude the assignment currently being updated
+
+        schedulingValidator.validateMinimumRestPeriod(
+                existingAssignments,
+                crewAssignmentRequest.getAssignmentStartTime(),
+                crewAssignmentRequest.getAssignmentEndTime(),
+                id,
+                schedulingProperties.getMinimumRestHours());
+
+        // Rule 6: Maximum duty hours
+
+        schedulingValidator.validateMaximumDutyHours(
+                crewAssignmentRequest.getAssignmentStartTime(),
+                crewAssignmentRequest.getAssignmentEndTime(),
+                schedulingProperties.getMaximumDutyHours());
+
+        // Rule 7: Maximum consecutive duty days
+        // Exclude the assignment currently being updated
+
+        schedulingValidator.validateMaximumConsecutiveDutyDays(
+                existingAssignments,
+                crewAssignmentRequest.getAssignmentStartTime(),
+                id,
+                schedulingProperties.getMaximumConsecutiveDutyDays());
+
+        // Update assignment
 
         crewAssignment.setCrewId(
                 crewAssignmentRequest.getCrewId());
@@ -212,7 +235,8 @@ public class CrewAssignmentService {
                 crewAssignmentRequest.getStatus());
 
         CrewAssignment updatedCrewAssignment =
-                crewAssignmentRepository.save(crewAssignment);
+                crewAssignmentRepository.save(
+                        crewAssignment);
 
         return mapToResponse(updatedCrewAssignment);
     }
@@ -223,9 +247,60 @@ public class CrewAssignmentService {
                 crewAssignmentRepository.findById(id)
                 .orElseThrow(() ->
                         new CrewAssignmentNotFoundException(
-                                "Crew Assignment Not Found With id: " + id));
+                                "Crew Assignment Not Found With id: "
+                                + id));
 
         crewAssignmentRepository.delete(crewAssignment);
+    }
+
+    private void validateApprovedLeave(
+            CrewAssignmentRequest crewAssignmentRequest) {
+
+        var leaveRequests =
+                leaveRequestRepository.findByCrewId(
+                        crewAssignmentRequest.getCrewId());
+
+        for (var leaveRequest : leaveRequests) {
+
+            if ("APPROVED".equalsIgnoreCase(
+                    leaveRequest.getStatus())
+                    && !crewAssignmentRequest
+                            .getAssignmentStartTime()
+                            .toLocalDate()
+                            .isAfter(
+                                    leaveRequest.getEndDate())
+                    && !crewAssignmentRequest
+                            .getAssignmentEndTime()
+                            .toLocalDate()
+                            .isBefore(
+                                    leaveRequest.getStartDate())) {
+
+                throw new IllegalArgumentException(
+                        "Crew member is on approved leave during this assignment");
+            }
+        }
+    }
+
+    private void validateCrewAvailability(
+            CrewAssignmentRequest crewAssignmentRequest) {
+
+        var availabilityRecords =
+                crewAvailabilityRepository
+                        .findByCrewIdAndDate(
+                                crewAssignmentRequest.getCrewId(),
+                                crewAssignmentRequest
+                                        .getAssignmentStartTime()
+                                        .toLocalDate());
+
+        if (availabilityRecords.isEmpty()
+                || !"AVAILABLE".equalsIgnoreCase(
+                        availabilityRecords
+                                .get(0)
+                                .getStatus())) {
+
+            throw new IllegalArgumentException(
+                    "Crew member is not available on the assignment date");
+        }
     }
 
     private CrewAssignmentResponse mapToResponse(
@@ -247,10 +322,12 @@ public class CrewAssignmentService {
                 crewAssignment.getAssignmentRole());
 
         response.setAssignmentStartTime(
-                crewAssignment.getAssignmentStartTime());
+                crewAssignment
+                        .getAssignmentStartTime());
 
         response.setAssignmentEndTime(
-                crewAssignment.getAssignmentEndTime());
+                crewAssignment
+                        .getAssignmentEndTime());
 
         response.setStatus(
                 crewAssignment.getStatus());

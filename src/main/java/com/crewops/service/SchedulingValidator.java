@@ -1,5 +1,6 @@
 package com.crewops.service;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -7,130 +8,176 @@ import org.springframework.stereotype.Component;
 
 import com.crewops.entity.CrewAssignment;
 
-import java.time.Duration;
-
 @Component
 public class SchedulingValidator {
-	
-	public void validateMaximumDutyHours(
-	        LocalDateTime startTime,
-	        LocalDateTime endTime,
-	        int maximumDutyHours) {
 
-	    if (!endTime.isAfter(startTime)) {
-	        throw new IllegalArgumentException(
-	                "Assignment end time must be after start time");
-	    }
+    public void validateAssignmentTime(
+            LocalDateTime startTime,
+            LocalDateTime endTime) {
 
-	    long dutyHours =
-	            java.time.Duration.between(startTime, endTime).toHours();
+        if (!endTime.isAfter(startTime)) {
+            throw new IllegalArgumentException(
+                    "Assignment end time must be after start time");
+        }
+    }
 
-	    if (dutyHours > maximumDutyHours) {
-	        throw new IllegalArgumentException(
-	                "Crew assignment exceeds the maximum duty period of "
-	                + maximumDutyHours + " hours");
-	    }
-	}
-	
-	public void validateMinimumRestPeriod(
-	        LocalDateTime startTime,
-	        LocalDateTime endTime,
-	        LocalDateTime existingStart,
-	        LocalDateTime existingEnd,
-	        int minimumRestHours) {
+    public void validateMaximumDutyHours(
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            int maximumDutyHours) {
 
-	    long restBefore =
-	            Duration.between(
-	                    existingEnd,
-	                    startTime)
-	            .toHours();
+        long dutyHours =
+                Duration.between(startTime, endTime)
+                        .toHours();
 
-	    long restAfter =
-	            Duration.between(
-	                    endTime,
-	                    existingStart)
-	            .toHours();
+        if (dutyHours > maximumDutyHours) {
+            throw new IllegalArgumentException(
+                    "Crew assignment exceeds the maximum duty period of "
+                    + maximumDutyHours + " hours");
+        }
+    }
 
-	    if (restBefore >= 0 && restBefore < minimumRestHours) {
-	        throw new IllegalArgumentException(
-	                "Crew member does not have the required minimum rest period of "
-	                + minimumRestHours + " hours");
-	    }
+    public void validateMinimumRestPeriod(
+            List<CrewAssignment> assignments,
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            Long excludedAssignmentId,
+            int minimumRestHours) {
 
-	    if (restAfter >= 0 && restAfter < minimumRestHours) {
-	        throw new IllegalArgumentException(
-	                "Crew member does not have the required minimum rest period of "
-	                + minimumRestHours + " hours");
-	    }
-	}
-	
-	public void validateNoOverlap(
-	        List<CrewAssignment> assignments,
-	        LocalDateTime startTime,
-	        LocalDateTime endTime) {
+        for (CrewAssignment assignment : assignments) {
 
-	    for (CrewAssignment assignment : assignments) {
+            if (excludedAssignmentId != null
+                    && excludedAssignmentId.equals(
+                            assignment.getId())) {
+                continue;
+            }
 
-	        boolean overlap =
-	                startTime.isBefore(
-	                        assignment.getAssignmentEndTime())
-	                && endTime.isAfter(
-	                        assignment.getAssignmentStartTime());
+            LocalDateTime existingStart =
+                    assignment.getAssignmentStartTime();
 
-	        if (overlap) {
-	            throw new IllegalArgumentException(
-	                    "Crew member already has an overlapping assignment");
-	        }
-	    }
-	}
-	
-	public void validateMaximumConsecutiveDutyDays(
-	        List<CrewAssignment> assignments,
-	        LocalDateTime assignmentStartTime,
-	        int maximumConsecutiveDays) {
+            LocalDateTime existingEnd =
+                    assignment.getAssignmentEndTime();
 
-	    if (assignments.isEmpty()) {
-	        return;
-	    }
+            long restBefore =
+                    Duration.between(
+                            existingEnd,
+                            startTime)
+                    .toHours();
 
-	    LocalDateTime proposedDateTime = assignmentStartTime;
+            long restAfter =
+                    Duration.between(
+                            endTime,
+                            existingStart)
+                    .toHours();
 
-	    int consecutiveDays = 1;
+            if (restBefore >= 0
+                    && restBefore < minimumRestHours) {
 
-	    for (int i = assignments.size() - 1; i >= 0; i--) {
+                throw new IllegalArgumentException(
+                        "Crew member does not have the required minimum rest period of "
+                        + minimumRestHours + " hours");
+            }
 
-	        LocalDateTime existingDateTime =
-	                assignments.get(i).getAssignmentStartTime();
+            if (restAfter >= 0
+                    && restAfter < minimumRestHours) {
 
-	        long daysBetween =
-	                java.time.Duration.between(
-	                        existingDateTime,
-	                        proposedDateTime)
-	                .toDays();
+                throw new IllegalArgumentException(
+                        "Crew member does not have the required minimum rest period of "
+                        + minimumRestHours + " hours");
+            }
+        }
+    }
 
-	        if (daysBetween == 1) {
+    public void validateNoOverlap(
+            List<CrewAssignment> assignments,
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            Long excludedAssignmentId) {
 
-	            consecutiveDays++;
+        for (CrewAssignment assignment : assignments) {
 
-	            proposedDateTime = existingDateTime;
+            if (excludedAssignmentId != null
+                    && excludedAssignmentId.equals(
+                            assignment.getId())) {
+                continue;
+            }
 
-	        } else if (daysBetween == 0) {
+            boolean overlap =
+                    startTime.isBefore(
+                            assignment.getAssignmentEndTime())
+                    && endTime.isAfter(
+                            assignment.getAssignmentStartTime());
 
-	            proposedDateTime = existingDateTime;
+            if (overlap) {
+                throw new IllegalArgumentException(
+                        "Crew member already has an overlapping assignment");
+            }
+        }
+    }
 
-	        } else {
+    public void validateMaximumConsecutiveDutyDays(
+            List<CrewAssignment> assignments,
+            LocalDateTime assignmentStartTime,
+            Long excludedAssignmentId,
+            int maximumConsecutiveDays) {
 
-	            break;
-	        }
+        List<CrewAssignment> filteredAssignments =
+                assignments.stream()
+                        .filter(assignment ->
+                                excludedAssignmentId == null
+                                || !excludedAssignmentId.equals(
+                                        assignment.getId()))
+                        .sorted((a, b) ->
+                                a.getAssignmentStartTime()
+                                        .compareTo(
+                                                b.getAssignmentStartTime()))
+                        .toList();
 
-	        if (consecutiveDays > maximumConsecutiveDays) {
+        if (filteredAssignments.isEmpty()) {
+            return;
+        }
 
-	            throw new IllegalArgumentException(
-	                    "Crew member cannot be assigned for more than "
-	                    + maximumConsecutiveDays
-	                    + " consecutive duty days");
-	        }
-	    }
-	}
+        LocalDateTime proposedDateTime =
+                assignmentStartTime;
 
+        int consecutiveDays = 1;
+
+        for (int i = filteredAssignments.size() - 1;
+                i >= 0;
+                i--) {
+
+            LocalDateTime existingDateTime =
+                    filteredAssignments.get(i)
+                            .getAssignmentStartTime();
+
+            long daysBetween =
+                    Duration.between(
+                            existingDateTime,
+                            proposedDateTime)
+                            .toDays();
+
+            if (daysBetween == 1) {
+
+                consecutiveDays++;
+
+                proposedDateTime = existingDateTime;
+
+            } else if (daysBetween == 0) {
+
+                proposedDateTime = existingDateTime;
+
+            } else if (daysBetween > 1) {
+
+                break;
+            }
+
+            if (consecutiveDays > maximumConsecutiveDays) {
+
+                throw new IllegalArgumentException(
+                        "Crew member cannot be assigned for more than "
+                        + maximumConsecutiveDays
+                        + " consecutive duty days");
+            }
+        }
+    }
 }
