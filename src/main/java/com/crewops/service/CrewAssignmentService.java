@@ -18,8 +18,6 @@ public class CrewAssignmentService {
 
     private final CrewAssignmentRepository crewAssignmentRepository;
 
-    private final SchedulingService schedulingService;
-
     private final LeaveRequestRepository leaveRequestRepository;
 
     private final CrewAvailabilityRepository crewAvailabilityRepository;
@@ -32,14 +30,12 @@ public class CrewAssignmentService {
             CrewAssignmentRepository crewAssignmentRepository,
             LeaveRequestRepository leaveRequestRepository,
             CrewAvailabilityRepository crewAvailabilityRepository,
-            SchedulingService schedulingService,
             SchedulingProperties schedulingProperties,
             SchedulingValidator schedulingValidator) {
 
         this.crewAssignmentRepository = crewAssignmentRepository;
         this.leaveRequestRepository = leaveRequestRepository;
         this.crewAvailabilityRepository = crewAvailabilityRepository;
-        this.schedulingService = schedulingService;
         this.schedulingProperties = schedulingProperties;
         this.schedulingValidator = schedulingValidator;
     }
@@ -92,24 +88,20 @@ public class CrewAssignmentService {
                     "Crew member is not available on the assignment date");
         }
 
-        // Rule 4: Check whether crew already has an overlapping assignment
-
-        boolean crewAvailable = schedulingService.isCrewAvailable(
-                crewAssignmentRequest.getCrewId(),
-                crewAssignmentRequest.getAssignmentStartTime(),
-                crewAssignmentRequest.getAssignmentEndTime());
-
-        if (!crewAvailable) {
-
-            throw new IllegalArgumentException(
-                    "Crew member already has an overlapping assignment");
-        }
-
-        // Rule 5: Check minimum rest period
+        // Get existing assignments
 
         List<CrewAssignment> existingAssignments =
                 crewAssignmentRepository.findByCrewId(
                         crewAssignmentRequest.getCrewId());
+
+        // Rule 4: Check overlapping assignment
+
+        schedulingValidator.validateNoOverlap(
+                existingAssignments,
+                crewAssignmentRequest.getAssignmentStartTime(),
+                crewAssignmentRequest.getAssignmentEndTime());
+
+        // Rule 5: Check minimum rest period
 
         for (CrewAssignment assignment : existingAssignments) {
 

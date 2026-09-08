@@ -64,6 +64,26 @@ public class SchedulingValidator {
 	    }
 	}
 	
+	public void validateNoOverlap(
+	        List<CrewAssignment> assignments,
+	        LocalDateTime startTime,
+	        LocalDateTime endTime) {
+
+	    for (CrewAssignment assignment : assignments) {
+
+	        boolean overlap =
+	                startTime.isBefore(
+	                        assignment.getAssignmentEndTime())
+	                && endTime.isAfter(
+	                        assignment.getAssignmentStartTime());
+
+	        if (overlap) {
+	            throw new IllegalArgumentException(
+	                    "Crew member already has an overlapping assignment");
+	        }
+	    }
+	}
+	
 	public void validateMaximumConsecutiveDutyDays(
 	        List<CrewAssignment> assignments,
 	        LocalDateTime assignmentStartTime,
