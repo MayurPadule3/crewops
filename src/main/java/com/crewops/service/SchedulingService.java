@@ -5,6 +5,8 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 import com.crewops.config.SchedulingProperties;
+import com.crewops.dto.SchedulingRequest;
+import com.crewops.dto.SchedulingResponse;
 import com.crewops.entity.CrewAssignment;
 import com.crewops.entity.Flight;
 import com.crewops.repository.CrewAssignmentRepository;
@@ -16,15 +18,10 @@ import com.crewops.repository.LeaveRequestRepository;
 public class SchedulingService {
 
     private final CrewAssignmentRepository crewAssignmentRepository;
-
     private final FlightRepository flightRepository;
-
     private final CrewAvailabilityRepository crewAvailabilityRepository;
-
     private final LeaveRequestRepository leaveRequestRepository;
-
     private final SchedulingProperties schedulingProperties;
-
     private final SchedulingValidator schedulingValidator;
 
     public SchedulingService(
@@ -35,33 +32,20 @@ public class SchedulingService {
             SchedulingProperties schedulingProperties,
             SchedulingValidator schedulingValidator) {
 
-        this.crewAssignmentRepository =
-                crewAssignmentRepository;
-
-        this.flightRepository =
-                flightRepository;
-
-        this.crewAvailabilityRepository =
-                crewAvailabilityRepository;
-
-        this.leaveRequestRepository =
-                leaveRequestRepository;
-
-        this.schedulingProperties =
-                schedulingProperties;
-
-        this.schedulingValidator =
-                schedulingValidator;
+        this.crewAssignmentRepository = crewAssignmentRepository;
+        this.flightRepository = flightRepository;
+        this.crewAvailabilityRepository = crewAvailabilityRepository;
+        this.leaveRequestRepository = leaveRequestRepository;
+        this.schedulingProperties = schedulingProperties;
+        this.schedulingValidator = schedulingValidator;
     }
 
     public List<CrewAssignment> getCrewAssignments(Long crewId) {
-
         return crewAssignmentRepository
                 .findByCrewIdOrderByAssignmentStartTimeAsc(crewId);
     }
 
     public Flight getFlight(Long flightId) {
-
         return flightRepository.findById(flightId)
                 .orElseThrow(() ->
                         new IllegalArgumentException(
@@ -197,5 +181,82 @@ public class SchedulingService {
                         .getMaximumConsecutiveDutyDays());
 
         return true;
+    }
+
+    // =========================================================
+    // CREATE CREW ASSIGNMENT THROUGH SCHEDULING
+    // =========================================================
+
+    public SchedulingResponse createAssignment(
+            SchedulingRequest schedulingRequest) {
+
+        Long crewId =
+                schedulingRequest.getCrewId();
+
+        Long flightId =
+                schedulingRequest.getFlightId();
+
+        String assignmentRole =
+                schedulingRequest.getAssignmentRole();
+
+        Flight flight =
+                getFlight(flightId);
+
+        boolean eligible =
+                isCrewEligible(
+                        crewId,
+                        flightId);
+
+        if (!eligible) {
+
+            throw new IllegalArgumentException(
+                    "Crew member is not eligible for this flight");
+        }
+
+        CrewAssignment crewAssignment =
+                new CrewAssignment();
+
+        crewAssignment.setCrewId(crewId);
+
+        crewAssignment.setFlightId(flightId);
+
+        crewAssignment.setAssignmentRole(
+                assignmentRole);
+
+        crewAssignment.setAssignmentStartTime(
+                flight.getDepartureTime());
+
+        crewAssignment.setAssignmentEndTime(
+                flight.getArrivalTime());
+
+        crewAssignment.setStatus(
+                "ASSIGNED");
+
+        CrewAssignment savedAssignment =
+                crewAssignmentRepository.save(
+                        crewAssignment);
+
+        SchedulingResponse response =
+                new SchedulingResponse();
+
+        response.setAssignmentId(
+                savedAssignment.getId());
+
+        response.setCrewId(
+                savedAssignment.getCrewId());
+
+        response.setFlightId(
+                savedAssignment.getFlightId());
+
+        response.setAssignmentRole(
+                savedAssignment.getAssignmentRole());
+
+        response.setStatus(
+                savedAssignment.getStatus());
+
+        response.setMessage(
+                "Crew member successfully assigned to flight");
+
+        return response;
     }
 }

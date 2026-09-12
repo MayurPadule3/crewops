@@ -17,6 +17,8 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import com.crewops.config.SchedulingProperties;
+import com.crewops.dto.SchedulingRequest;
+import com.crewops.dto.SchedulingResponse;
 import com.crewops.entity.CrewAssignment;
 import com.crewops.entity.CrewAvailability;
 import com.crewops.entity.Flight;
@@ -598,20 +600,6 @@ class SchedulingServiceTest {
                 .findByCrewId(crewId))
                 .thenReturn(List.of());
 
-        /*
-         * Existing assignment:
-         *
-         * 25 Sep 18:00 -> 26 Sep 02:00
-         *
-         * New flight:
-         *
-         * 26 Sep 08:00 -> 12:00
-         *
-         * Rest = 6 hours
-         *
-         * Required = 10 hours
-         */
-
         CrewAssignment assignment =
                 new CrewAssignment();
 
@@ -663,16 +651,6 @@ class SchedulingServiceTest {
 
         Long crewId = 1L;
         Long flightId = 1L;
-
-        /*
-         * Flight:
-         *
-         * 08:00 -> 21:00
-         *
-         * Total = 13 hours
-         *
-         * Maximum allowed = 12 hours
-         */
 
         Flight flight = new Flight();
 
@@ -745,25 +723,6 @@ class SchedulingServiceTest {
 
         Long crewId = 1L;
         Long flightId = 1L;
-
-        /*
-         * Existing assignments:
-         *
-         * 20 Sep
-         * 21 Sep
-         * 22 Sep
-         * 23 Sep
-         * 24 Sep
-         * 25 Sep
-         *
-         * New flight:
-         *
-         * 26 Sep
-         *
-         * Total = 7 consecutive duty days
-         *
-         * Maximum allowed = 6 days
-         */
 
         Flight flight = new Flight();
 
@@ -884,6 +843,210 @@ class SchedulingServiceTest {
 
         assertEquals(
                 "Crew member cannot be assigned for more than 6 consecutive duty days",
+                exception.getMessage());
+    }
+
+    // =========================================================
+    // TEST 15
+    // CREATE ASSIGNMENT SUCCESS
+    // =========================================================
+
+    @Test
+    void shouldCreateAssignmentSuccessfully() {
+
+        Long crewId = 7L;
+        Long flightId = 2L;
+
+        SchedulingRequest request =
+                new SchedulingRequest();
+
+        request.setCrewId(crewId);
+        request.setFlightId(flightId);
+        request.setAssignmentRole("PILOT");
+
+        Flight flight = new Flight();
+
+        flight.setId(flightId);
+        flight.setFlightNumber("AI203");
+
+        flight.setDepartureTime(
+                LocalDateTime.of(2026, 9, 5, 11, 0));
+
+        flight.setArrivalTime(
+                LocalDateTime.of(2026, 9, 5, 13, 30));
+
+        when(flightRepository
+                .findById(flightId))
+                .thenReturn(Optional.of(flight));
+
+        CrewAvailability availability =
+                new CrewAvailability();
+
+        availability.setCrewId(crewId);
+        availability.setDate(
+                LocalDate.of(2026, 9, 5));
+        availability.setStatus("AVAILABLE");
+
+        when(crewAvailabilityRepository
+                .findByCrewIdAndDate(
+                        crewId,
+                        LocalDate.of(2026, 9, 5)))
+                .thenReturn(List.of(availability));
+
+        when(leaveRequestRepository
+                .findByCrewId(crewId))
+                .thenReturn(List.of());
+
+        when(crewAssignmentRepository
+                .findByCrewIdOrderByAssignmentStartTimeAsc(crewId))
+                .thenReturn(List.of());
+
+        when(schedulingProperties
+                .getMinimumRestHours())
+                .thenReturn(10);
+
+        when(schedulingProperties
+                .getMaximumDutyHours())
+                .thenReturn(12);
+
+        when(schedulingProperties
+                .getMaximumConsecutiveDutyDays())
+                .thenReturn(6);
+
+        CrewAssignment savedAssignment =
+                new CrewAssignment();
+
+        savedAssignment.setId(20L);
+        savedAssignment.setCrewId(crewId);
+        savedAssignment.setFlightId(flightId);
+        savedAssignment.setAssignmentRole("PILOT");
+
+        savedAssignment.setAssignmentStartTime(
+                flight.getDepartureTime());
+
+        savedAssignment.setAssignmentEndTime(
+                flight.getArrivalTime());
+
+        savedAssignment.setStatus("ASSIGNED");
+
+        when(crewAssignmentRepository
+                .save(org.mockito.ArgumentMatchers.any(
+                        CrewAssignment.class)))
+                .thenReturn(savedAssignment);
+
+        SchedulingResponse response =
+                schedulingService.createAssignment(
+                        request);
+
+        assertEquals(
+                20L,
+                response.getAssignmentId());
+
+        assertEquals(
+                crewId,
+                response.getCrewId());
+
+        assertEquals(
+                flightId,
+                response.getFlightId());
+
+        assertEquals(
+                "PILOT",
+                response.getAssignmentRole());
+
+        assertEquals(
+                "ASSIGNED",
+                response.getStatus());
+
+        assertEquals(
+                "Crew member successfully assigned to flight",
+                response.getMessage());
+    }
+
+    // =========================================================
+    // TEST 16
+    // REJECT INELIGIBLE CREW MEMBER
+    // =========================================================
+
+    @Test
+    void shouldRejectIneligibleCrewMember() {
+
+        Long crewId = 7L;
+        Long flightId = 2L;
+
+        SchedulingRequest request =
+                new SchedulingRequest();
+
+        request.setCrewId(crewId);
+        request.setFlightId(flightId);
+        request.setAssignmentRole("PILOT");
+
+        Flight flight = new Flight();
+
+        flight.setId(flightId);
+
+        flight.setDepartureTime(
+                LocalDateTime.of(2026, 9, 5, 11, 0));
+
+        flight.setArrivalTime(
+                LocalDateTime.of(2026, 9, 5, 13, 30));
+
+        when(flightRepository
+                .findById(flightId))
+                .thenReturn(Optional.of(flight));
+
+        /*
+         * No availability record means
+         * crew member is not eligible.
+         */
+
+        when(crewAvailabilityRepository
+                .findByCrewIdAndDate(
+                        crewId,
+                        LocalDate.of(2026, 9, 5)))
+                .thenReturn(List.of());
+
+        IllegalArgumentException exception =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> schedulingService
+                                .createAssignment(request));
+
+        assertEquals(
+                "Crew member is not eligible for this flight",
+                exception.getMessage());
+    }
+
+    // =========================================================
+    // TEST 17
+    // REJECT INVALID / NON-EXISTING FLIGHT
+    // =========================================================
+
+    @Test
+    void shouldRejectNonExistingFlight() {
+
+        Long crewId = 7L;
+        Long flightId = 999L;
+
+        SchedulingRequest request =
+                new SchedulingRequest();
+
+        request.setCrewId(crewId);
+        request.setFlightId(flightId);
+        request.setAssignmentRole("PILOT");
+
+        when(flightRepository
+                .findById(flightId))
+                .thenReturn(Optional.empty());
+
+        IllegalArgumentException exception =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> schedulingService
+                                .createAssignment(request));
+
+        assertEquals(
+                "Flight Not Found With id: 999",
                 exception.getMessage());
     }
 
