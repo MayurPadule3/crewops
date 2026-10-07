@@ -1,16 +1,21 @@
 package com.crewops.service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 
 import com.crewops.config.SchedulingProperties;
+import com.crewops.dto.AutoSchedulingRequest;
+import com.crewops.dto.EligibleCrewResponse;
 import com.crewops.dto.SchedulingRequest;
 import com.crewops.dto.SchedulingResponse;
+import com.crewops.entity.Crew;
 import com.crewops.entity.CrewAssignment;
 import com.crewops.entity.Flight;
 import com.crewops.repository.CrewAssignmentRepository;
 import com.crewops.repository.CrewAvailabilityRepository;
+import com.crewops.repository.CrewRepository;
 import com.crewops.repository.FlightRepository;
 import com.crewops.repository.LeaveRequestRepository;
 
@@ -21,6 +26,7 @@ public class SchedulingService {
     private final FlightRepository flightRepository;
     private final CrewAvailabilityRepository crewAvailabilityRepository;
     private final LeaveRequestRepository leaveRequestRepository;
+    private final CrewRepository crewRepository;
     private final SchedulingProperties schedulingProperties;
     private final SchedulingValidator schedulingValidator;
 
@@ -29,6 +35,7 @@ public class SchedulingService {
             FlightRepository flightRepository,
             CrewAvailabilityRepository crewAvailabilityRepository,
             LeaveRequestRepository leaveRequestRepository,
+            CrewRepository crewRepository,
             SchedulingProperties schedulingProperties,
             SchedulingValidator schedulingValidator) {
 
@@ -36,21 +43,24 @@ public class SchedulingService {
         this.flightRepository = flightRepository;
         this.crewAvailabilityRepository = crewAvailabilityRepository;
         this.leaveRequestRepository = leaveRequestRepository;
+        this.crewRepository = crewRepository;
         this.schedulingProperties = schedulingProperties;
         this.schedulingValidator = schedulingValidator;
     }
 
     public List<CrewAssignment> getCrewAssignments(Long crewId) {
+
         return crewAssignmentRepository
                 .findByCrewIdOrderByAssignmentStartTimeAsc(crewId);
     }
 
     public Flight getFlight(Long flightId) {
+
         return flightRepository.findById(flightId)
                 .orElseThrow(() ->
                         new IllegalArgumentException(
                                 "Flight Not Found With id: "
-                                + flightId));
+                                        + flightId));
     }
 
     public boolean hasSchedulingConflict(
@@ -183,10 +193,6 @@ public class SchedulingService {
         return true;
     }
 
-    // =========================================================
-    // CREATE CREW ASSIGNMENT THROUGH SCHEDULING
-    // =========================================================
-
     public SchedulingResponse createAssignment(
             SchedulingRequest schedulingRequest) {
 
@@ -217,20 +223,13 @@ public class SchedulingService {
                 new CrewAssignment();
 
         crewAssignment.setCrewId(crewId);
-
         crewAssignment.setFlightId(flightId);
-
-        crewAssignment.setAssignmentRole(
-                assignmentRole);
-
+        crewAssignment.setAssignmentRole(assignmentRole);
         crewAssignment.setAssignmentStartTime(
                 flight.getDepartureTime());
-
         crewAssignment.setAssignmentEndTime(
                 flight.getArrivalTime());
-
-        crewAssignment.setStatus(
-                "ASSIGNED");
+        crewAssignment.setStatus("ASSIGNED");
 
         CrewAssignment savedAssignment =
                 crewAssignmentRepository.save(
@@ -258,5 +257,104 @@ public class SchedulingService {
                 "Crew member successfully assigned to flight");
 
         return response;
+    }
+
+    public List<EligibleCrewResponse> findEligibleCrew(
+            Long flightId,
+            String role) {
+
+        getFlight(flightId);
+
+        List<Crew> allCrew =
+                crewRepository.findAll();
+
+        List<EligibleCrewResponse> eligibleCrew =
+                new ArrayList<>();
+
+        for (Crew crew : allCrew) {
+
+            if (!crew.getRole().equalsIgnoreCase(role)) {
+                continue;
+            }
+
+            try {
+
+                boolean eligible =
+                        isCrewEligible(
+                                crew.getId(),
+                                flightId);
+
+                if (eligible) {
+
+                    EligibleCrewResponse response =
+                            new EligibleCrewResponse();
+
+                    response.setCrewId(
+                            crew.getId());
+
+                    response.setEmployeeCode(
+                            crew.getEmployeeCode());
+
+                    response.setName(
+                            crew.getName());
+
+                    response.setRole(
+                            crew.getRole());
+
+                    response.setBaseAirport(
+                            crew.getBaseAirport());
+
+                    response.setStatus(
+                            crew.getStatus());
+
+                    eligibleCrew.add(response);
+                }
+
+            } catch (IllegalArgumentException exception) {
+
+                // Ineligible crew is skipped.
+            }
+        }
+
+        return eligibleCrew;
+    }
+
+    public SchedulingResponse autoAssignCrew(
+            AutoSchedulingRequest request) {
+
+        Long flightId =
+                request.getFlightId();
+
+        String role =
+                request.getAssignmentRole();
+
+        List<EligibleCrewResponse> eligibleCrew =
+                findEligibleCrew(
+                        flightId,
+                        role);
+
+        if (eligibleCrew.isEmpty()) {
+
+            throw new IllegalArgumentException(
+                    "No eligible crew available for this flight and role");
+        }
+
+        Long selectedCrewId =
+                eligibleCrew.get(0).getCrewId();
+
+        SchedulingRequest schedulingRequest =
+                new SchedulingRequest();
+
+        schedulingRequest.setCrewId(
+                selectedCrewId);
+
+        schedulingRequest.setFlightId(
+                flightId);
+
+        schedulingRequest.setAssignmentRole(
+                role);
+
+        return createAssignment(
+                schedulingRequest);
     }
 }
